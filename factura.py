@@ -2,47 +2,54 @@ import streamlit as st
 from fpdf import FPDF
 from datetime import datetime
 
-# Configuración de página compacta
+# 1. Configuración de página ultra-limpia
 st.set_page_config(page_title="Factura", layout="wide")
 
-# Ocultar elementos innecesarios de la interfaz web
-st.markdown("""<style>#MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;} .stDeployButton {display:none;}</style>""", unsafe_allow_index=True)
+# Ocultar TODO lo que sobra de la web (títulos, menús, iconos)
+st.markdown("""
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .stDeployButton {display:none;}
+    [data-testid="stHeader"] {display:none;}
+    </style>
+    """, unsafe_allow_index=True)
 
-# --- INICIO DIRECTO SIN TITULOS DECORATIVOS ---
-with st.container():
-    col_n, col_f = st.columns(2)
-    with col_n:
-        num_factura = st.text_input("Factura Nº", "2026-0001")
-    with col_f:
-        fecha_hoy = datetime.now().strftime("%d/%m/%Y")
-        fecha_factura = st.text_input("Fecha", fecha_hoy)
+# --- ENCABEZADO DIRECTO ---
+c_n, c_f = st.columns(2)
+with c_n:
+    num_factura = st.text_input("Factura Nº", "2026-0001")
+with c_f:
+    fecha_hoy = datetime.now().strftime("%d/%m/%Y")
+    fecha_factura = st.text_input("Fecha", fecha_hoy)
 
 st.divider()
 
-# --- DATOS DE LAS PARTES ---
-with st.expander("📝 Datos de Emisor y Cliente", expanded=True):
+# --- DATOS COMPACTOS ---
+with st.expander("📝 Datos Identificativos", expanded=True):
     c1, c2 = st.columns(2)
     with c1:
         mi_nombre = st.text_input("Emisor", "DI ESTEFANO")
-        mi_nif = st.text_input("NIF Emisor", "B71537948")
-        mi_dir = st.text_input("Direccion Emisor", "Paseo Río Iratí Nº11 - 2do A")
-        mi_iban = st.text_input("IBAN Cobro", "ES00...")
+        mi_nif = st.text_input("NIF/DNI", "B71537948")
+        mi_dir = st.text_input("Dirección", "Paseo Río Iratí Nº11 - 2do A")
+        mi_iban = st.text_input("IBAN para el cobro", "ES00...")
     with c2:
         c_nombre = st.text_input("Cliente", "ADANIA RESIDENCIAL S.L.")
         c_nif = st.text_input("NIF Cliente", "B31114051")
-        c_dir = st.text_input("Direccion Cliente", "Galar 31191")
+        c_dir = st.text_input("Dirección Cliente", "Galar 31191")
 
-# --- TABLA DE TRABAJOS ---
+# --- TABLA SIN ESPACIOS ---
 if 'filas' not in st.session_state: st.session_state.filas = 4
 
 st.write("### Detalle de Trabajos")
 datos_tabla = []
 for i in range(st.session_state.filas):
     col1, col2, col3, col4 = st.columns([5, 1, 1, 1])
-    with col1: d = st.text_input(f"Descripcion {i+1}", key=f"d{i}")
-    with col2: u = st.selectbox(f"Unidad", ["m2", "Ud", "ml", "kg"], key=f"u{i}")
-    with col3: m = st.number_input(f"Cantidad", min_value=0.0, format="%.2f", key=f"m{i}")
-    with col4: p = st.number_input(f"Precio", min_value=0.0, format="%.2f", key=f"p{i}")
+    with col1: d = st.text_input(f"Descripción {i+1}", key=f"d{i}", label_visibility="collapsed")
+    with col2: u = st.selectbox(f"Unid", ["m2", "Ud", "ml", "kg"], key=f"u{i}", label_visibility="collapsed")
+    with col3: m = st.number_input(f"Cant", min_value=0.0, format="%.2f", key=f"m{i}", label_visibility="collapsed")
+    with col4: p = st.number_input(f"Precio", min_value=0.0, format="%.2f", key=f"p{i}", label_visibility="collapsed")
     if d: datos_tabla.append({"d": d, "u": u, "c": m, "p": p, "s": m*p})
 
 b1, b2, _ = st.columns([1, 1, 4])
@@ -51,20 +58,21 @@ with b1:
 with b2:
     if st.button("➖ Quitar") and st.session_state.filas > 1: st.session_state.filas -= 1; st.rerun()
 
-# --- CALCULOS ---
+# --- CÁLCULOS (Sidebar) ---
 iva_p = st.sidebar.number_input("IVA %", value=0)
-ret_p = st.sidebar.number_input("Retencion %", value=15)
+ret_p = st.sidebar.number_input("Retención %", value=15)
 subtotal = sum(f["s"] for f in datos_tabla)
 m_iva = subtotal * (iva_p / 100)
 m_ret = subtotal * (ret_p / 100)
 total = subtotal + m_iva - m_ret
 
-# --- GENERADOR PDF PROFESIONAL ---
+# --- GENERACIÓN DE PDF PROFESIONAL ---
 def crear_pdf():
     pdf = FPDF()
     pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
     
-    # Encabezado
+    # Encabezado serio
     pdf.set_font("Arial", 'B', 14)
     pdf.cell(100, 10, "FACTURA", 0, 0)
     pdf.set_font("Arial", '', 10)
@@ -74,9 +82,9 @@ def crear_pdf():
     # Datos Emisor/Receptor cara a cara
     pdf.set_font("Arial", 'B', 9)
     pdf.set_fill_color(240, 240, 240)
-    pdf.cell(95, 6, " DATOS DEL EMISOR", 0, 0, 'L', True)
+    pdf.cell(95, 6, " EMISOR", 0, 0, 'L', True)
     pdf.cell(5, 6, "", 0, 0)
-    pdf.cell(90, 6, " DATOS DEL CLIENTE", 0, 1, 'L', True)
+    pdf.cell(90, 6, " CLIENTE", 0, 1, 'L', True)
     
     pdf.set_font("Arial", '', 9)
     pdf.ln(2)
@@ -88,7 +96,7 @@ def crear_pdf():
     pdf.cell(90, 4, f"{c_dir}", 0, 1)
     pdf.ln(8)
 
-    # Tabla
+    # Tabla de Conceptos
     pdf.set_font("Arial", 'B', 9)
     pdf.cell(90, 7, " Descripcion", 1, 0, 'L', True)
     pdf.cell(20, 7, "Ud", 1, 0, 'C', True)
@@ -104,7 +112,7 @@ def crear_pdf():
         pdf.cell(30, 6, f"{f['p']:.2f}", 1, 0, 'C')
         pdf.cell(30, 6, f"{f['s']:.2f}", 1, 1, 'R')
 
-    # Totales
+    # Bloque de Totales
     pdf.ln(5)
     pdf.set_x(130)
     pdf.set_font("Arial", 'B', 9)
@@ -122,12 +130,14 @@ def crear_pdf():
     pdf.cell(40, 10, "TOTAL NETO:", 'T')
     pdf.cell(30, 10, f"{total:.2f} EUR", 'T', 1, 'R')
 
-    # Pago
+    # IBAN y Notas
     pdf.ln(5)
     pdf.set_font("Arial", 'B', 10)
-    pdf.cell(0, 8, f"PAGO (IBAN): {mi_iban}", 0, 1)
+    pdf.cell(0, 8, f"FORMA DE PAGO (IBAN): {mi_iban}", 0, 1)
+    pdf.set_font("Arial", 'I', 8)
+    pdf.ln(2)
+    pdf.multi_cell(0, 4, f"Nota: Operacion exenta de IVA segun Art. 20 Ley 37/1992.")
     
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
-# Boton de descarga
 st.download_button("📩 DESCARGAR FACTURA PDF", data=crear_pdf(), file_name=f"Factura_{num_factura}.pdf")
