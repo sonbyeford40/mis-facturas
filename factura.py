@@ -2,10 +2,10 @@ import streamlit as st
 from fpdf import FPDF
 from datetime import datetime
 
-# 1. Configuración compacta y seria
+# 1. Configuración de página limpia
 st.set_page_config(page_title="Factura", layout="wide")
 
-# Ocultar decoraciones innecesarias
+# Ocultar menús para que no estorben
 st.markdown("""<style>#MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;} [data-testid="stHeader"] {display:none;}</style>""", unsafe_allow_index=True)
 
 # --- CABECERA (Nº Factura y Fecha) ---
@@ -17,7 +17,7 @@ with c_f:
 
 st.divider()
 
-# --- DATOS EMISOR Y CLIENTE (LADO A LADO) ---
+# --- DATOS EMISOR Y CLIENTE (JUNTOS) ---
 with st.expander("Datos de Facturacion", expanded=True):
     col1, col2 = st.columns(2)
     with col1:
@@ -30,7 +30,7 @@ with st.expander("Datos de Facturacion", expanded=True):
         cl_nif = st.text_input("NIF Cliente", "B31114051")
         cl_dir = st.text_input("Direccion Cliente", "Galar 31191")
 
-# --- TRABAJOS ---
+# --- TABLA DE TRABAJOS ---
 if 'filas' not in st.session_state: st.session_state.filas = 4
 st.write("### Detalle de Trabajos")
 items = []
@@ -42,31 +42,40 @@ for i in range(st.session_state.filas):
     with c4: p = st.number_input(f"Precio", min_value=0.0, key=f"p{i}")
     if d: items.append({"d": d, "u": u, "c": m, "p": p, "s": m*p})
 
-# --- TOTALES ---
+# --- CALCULOS ---
 subtotal = sum(item["s"] for item in items)
 iva = st.sidebar.number_input("IVA %", value=0)
 ret = st.sidebar.number_input("Retencion %", value=15)
 total = subtotal + (subtotal * iva/100) - (subtotal * ret/100)
 
-# --- BOTON DE DESCARGA (SOLO APARECE SI NO HAY ERROR) ---
+# --- FUNCION PARA CREAR EL PDF (SIN SIMBOLOS RAROS) ---
 def generar_pdf():
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, f"FACTURA: {num_f}", 0, 1)
+    pdf.cell(0, 10, "FACTURA", 0, 1, 'C')
     pdf.set_font("Arial", '', 10)
-    pdf.cell(0, 10, f"Fecha: {fecha_f}", 0, 1)
+    pdf.cell(0, 8, f"Numero: {num_f} | Fecha: {fecha_f}", 0, 1, 'R')
     pdf.ln(5)
-    # Tabla simple para ahorrar espacio
-    pdf.cell(100, 8, "Descripcion", 1)
-    pdf.cell(30, 8, "Total", 1, 1, 'R')
-    for it in items:
-        pdf.cell(100, 8, it['d'], 1)
-        pdf.cell(30, 8, f"{it['s']:.2f}", 1, 1, 'R')
-    pdf.ln(5)
-    pdf.cell(0, 10, f"TOTAL NETO: {total:.2f} EUR", 0, 1)
-    pdf.cell(0, 10, f"IBAN: {mi_iban}", 0, 1)
+    
+    # Datos Emisor/Cliente cara a cara
+    pdf.set_font("Arial", 'B', 9)
+    pdf.cell(95, 6, "EMISOR", 1)
+    pdf.cell(95, 6, "CLIENTE", 1, 1)
+    pdf.set_font("Arial", '', 9)
+    pdf.cell(95, 5, mi_nom, 0, 0)
+    pdf.cell(95, 5, cl_nom, 0, 1)
+    pdf.cell(95, 5, mi_nif, 0, 0)
+    pdf.cell(95, 5, cl_nif, 0, 1)
+    pdf.ln(10)
+
+    # Totales e IBAN
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(0, 10, f"TOTAL NETO A PAGAR: {total:.2f} EUR", 0, 1)
+    pdf.cell(0, 10, f"PAGO (IBAN): {mi_iban}", 0, 1)
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
 st.divider()
-st.download_button("📩 DESCARGAR FACTURA PDF", data=generar_pdf(), file_name="Factura.pdf")
+
+# ESTE ES EL BOTON QUE DEBE APARECER ABAJO
+st.download_button("DESCARGAR FACTURA PDF", data=generar_pdf(), file_name="Factura.pdf")
