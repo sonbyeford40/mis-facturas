@@ -2,7 +2,8 @@ import streamlit as st
 from fpdf import FPDF
 from datetime import datetime
 
-st.set_page_config(page_title="Facturador Profesional", layout="wide")
+# 1. Configuración compacta
+st.set_page_config(page_title="Facturador", layout="wide")
 
 # Título
 st.title("Generador de Facturas")
@@ -40,7 +41,7 @@ if 'n_filas' not in st.session_state:
 datos_tabla = []
 for i in range(st.session_state.n_filas):
     ca, cb, cc, cd = st.columns([4, 1, 1, 1])
-    with ca: d = st.text_input(f"Descripción", key=f"d_{i}")
+    with ca: d = st.text_input(f"Descripción {i+1}", key=f"d_{i}")
     with cb: u = st.text_input(f"Unid", value="Ud", key=f"u_{i}")
     with cc: m = st.number_input(f"Cant", min_value=0.0, key=f"m_{i}")
     with cd: p = st.number_input(f"Precio", min_value=0.0, key=f"p_{i}")
@@ -78,7 +79,6 @@ def crear_pdf():
     pdf.set_font("Arial", '', 9)
     pdf.cell(0, 8, f"Factura: {num_factura} | Fecha: {fecha_factura}", 0, 1, 'R')
     
-    # Datos juntos para ahorrar espacio
     pdf.ln(5)
     pdf.set_fill_color(245, 245, 245)
     pdf.set_font("Arial", 'B', 10)
@@ -90,10 +90,9 @@ def crear_pdf():
     pdf.cell(95, 5, f"NIF: {mi_nif}", 0, 0); pdf.cell(95, 5, f"NIF: {c_nif}", 0, 1)
     pdf.cell(95, 5, mi_dir, 0, 0); pdf.cell(95, 5, c_dir, 0, 1)
 
-    # Tabla
     pdf.ln(10)
     pdf.set_font("Arial", 'B', 9)
-    pdf.cell(100, 8, "Descripción", 1, 0, 'C', True)
+    pdf.cell(100, 8, "Descripcion", 1, 0, 'C', True)
     pdf.cell(30, 8, "Cant", 1, 0, 'C', True)
     pdf.cell(30, 8, "Precio", 1, 0, 'C', True)
     pdf.cell(30, 8, "Total", 1, 1, 'C', True)
@@ -105,7 +104,6 @@ def crear_pdf():
         pdf.cell(30, 7, f"{item['p']:.2f}", 1, 0, 'C')
         pdf.cell(30, 7, f"{item['t']:.2f}", 1, 1, 'C')
 
-    # Desglose
     pdf.ln(5)
     pdf.cell(130, 6, "", 0)
     pdf.cell(30, 6, "Base Imponible:", 0, 0, 'R')
@@ -121,10 +119,9 @@ def crear_pdf():
     pdf.cell(30, 8, "TOTAL NETO:", 0, 0, 'R')
     pdf.cell(30, 8, f"{total_final:.2f} EUR", 1, 1, 'R')
 
-    # TEXTO LEGAL LEY DEL IVA
     pdf.ln(10)
     pdf.set_font("Arial", 'I', 8)
-    texto_legal = "Operación sujeta a la Ley 37/1992 del Impuesto sobre el Valor Añadido (IVA). En caso de inversión del sujeto pasivo, se aplica el artículo 84.Uno.2º de dicha Ley."
+    texto_legal = "Operacion sujeta a la Ley 37/1992 del Impuesto sobre el Valor Añadido (IVA). En caso de inversion del sujeto pasivo, se aplica el articulo 84.Uno.2 de dicha Ley."
     pdf.multi_cell(0, 5, texto_legal)
 
     pdf.ln(5)
@@ -134,4 +131,4 @@ def crear_pdf():
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
 st.divider()
-st.download_button("📩 DESCARGAR FACTURA PDF", data=crear_pdf(), file_name=f"Factura_{num_factura}.pdf")
+st.download_button("DESCARGAR FACTURA PDF", data=crear_pdf(), file_name=f"Factura_{num_factura}.pdf")
