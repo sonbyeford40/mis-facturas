@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit as sy
 from fpdf import FPDF
 from datetime import datetime
 
