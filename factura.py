@@ -2,35 +2,32 @@ import streamlit as st
 from fpdf import FPDF
 from datetime import datetime
 
-# 1. Configuración de pantalla (Quita el cohete y menús)
+# Configuracion seria sin titulos decorativos
 st.set_page_config(page_title="Factura", layout="wide")
 st.markdown("""<style>#MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;} [data-testid="stHeader"] {display:none;}</style>""", unsafe_allow_index=True)
 
 # --- CABECERA (Nº Factura y Fecha) ---
 col_n, col_f = st.columns(2)
 with col_n:
-    # Soporta numeración larga
-    num_factura = st.text_input("Nº Factura", "2026-0001")
+    num_factura = st.text_input("Numero de Factura", "2026-0001")
 with col_f:
-    # Fecha manual o automática
     fecha_factura = st.text_input("Fecha de Emision", datetime.now().strftime("%d/%m/%Y"))
 
 st.divider()
 
-# --- DATOS JUNTOS (Emisor y Cliente lado a lado) ---
-with st.container():
-    c1, c2 = st.columns(2)
-    with c1:
-        st.write("**DATOS DEL EMISOR**")
-        mi_nombre = st.text_input("Mi Nombre", "DI ESTEFANO")
-        mi_nif = st.text_input("Mi NIF", "B71537948")
-        mi_dir = st.text_input("Mi Direccion", "Paseo Rio Irati 11")
-        mi_iban = st.text_input("Mi IBAN", "ES00...")
-    with c2:
-        st.write("**DATOS DEL CLIENTE**")
-        c_nombre = st.text_input("Cliente", "ADANIA RESIDENCIAL S.L.")
-        c_nif = st.text_input("NIF Cliente", "B31114051")
-        c_dir = st.text_input("Direccion Cliente", "Galar 31191")
+# --- DATOS EMISOR Y CLIENTE JUNTOS ---
+c1, c2 = st.columns(2)
+with c1:
+    st.subheader("Datos del Emisor")
+    mi_nombre = st.text_input("Mi Nombre", "DI ESTEFANO")
+    mi_nif = st.text_input("Mi NIF", "B71537948")
+    mi_dir = st.text_input("Mi Direccion", "Paseo Rio Irati 11")
+    mi_iban = st.text_input("Mi IBAN", "ES00...")
+with c2:
+    st.subheader("Datos del Cliente")
+    c_nombre = st.text_input("Cliente", "ADANIA RESIDENCIAL S.L.")
+    c_nif = st.text_input("NIF Cliente", "B31114051")
+    c_dir = st.text_input("Direccion Cliente", "Galar 31191")
 
 # --- TABLA DE TRABAJOS ---
 if 'filas' not in st.session_state: st.session_state.filas = 4
@@ -44,23 +41,23 @@ for i in range(st.session_state.filas):
     with col4: p = st.number_input(f"Precio", min_value=0.0, key=f"p{i}")
     if d: datos.append({"d": d, "u": u, "c": m, "p": p, "s": m*p})
 
-# --- TOTALES ---
+# --- CALCULOS ---
 subtotal = sum(f["s"] for f in datos)
-total = subtotal * 0.85 # Ajuste con retencion
+total = subtotal * 0.85 
 
-# --- GENERADOR DE PDF (Sin simbolos que den error) ---
+# --- GENERADOR DE PDF ---
 def crear_pdf():
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 14)
     pdf.cell(0, 10, "FACTURA", 0, 1, 'C')
     pdf.set_font("Arial", '', 10)
-    pdf.cell(0, 8, f"Numero: {num_factura}  |  Fecha: {fecha_factura}", 0, 1, 'R')
+    pdf.cell(0, 10, f"Numero: {num_factura} | Fecha: {fecha_factura}", 0, 1, 'R')
     pdf.ln(10)
     pdf.cell(0, 10, f"TOTAL NETO: {total:.2f} EUR", 0, 1)
     pdf.cell(0, 10, f"IBAN: {mi_iban}", 0, 1)
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
 st.divider()
-# EL BOTÓN AZUL APARECERÁ AQUÍ
+# EL BOTON AZUL QUE BUSCAS APARECERA AQUI ABAJO
 st.download_button("📩 DESCARGAR FACTURA PDF", data=crear_pdf(), file_name=f"Factura_{num_factura}.pdf")
