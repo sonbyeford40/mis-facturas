@@ -3,7 +3,7 @@ from fpdf import FPDF
 from datetime import datetime
 
 # 1. Configuración de página
-st.set_page_config(page_title="Facturador", layout="wide")
+st.set_page_config(page_title="Facturador Pro", layout="wide")
 
 # --- CABECERA ---
 c1, c2 = st.columns(2)
@@ -44,8 +44,12 @@ if st.button("➕ Añadir otra fila"):
     st.session_state.filas += 1
     st.rerun()
 
-# --- TOTALES ---
+# --- CLAUSULA PERSONALIZADA ---
 st.write("---")
+txt_legal = st.text_area("Cláusula Legal / Notas adicionales", 
+                         value="Operación sujeta a la Ley 37/1992 del IVA. En caso de inversión del sujeto pasivo, se aplica el artículo 84.Uno.2 de dicha Ley.")
+
+# --- TOTALES ---
 base = sum(it["t"] for it in items)
 iva = base * 0.21
 irpf = base * 0.15
@@ -63,13 +67,13 @@ def crear_pdf():
     pdf = FPDF()
     pdf.add_page()
     
-    # Encabezado Factura
+    # Encabezado
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(0, 10, "FACTURA", 0, 1, 'L')
     pdf.set_font("Arial", '', 10)
     pdf.cell(0, 7, f"Numero: {num_f}  |  Fecha: {fec_f}", 0, 1, 'R')
     
-    # Datos Emisor y Cliente
+    # Datos
     pdf.ln(5)
     pdf.set_font("Arial", 'B', 10)
     pdf.cell(95, 7, "EMISOR", 0, 0); pdf.cell(95, 7, "CLIENTE", 0, 1)
@@ -78,7 +82,7 @@ def crear_pdf():
     pdf.cell(95, 5, f"NIF: {mi_nif}", 0, 0); pdf.cell(95, 5, f"NIF: {cl_nif}", 0, 1)
     pdf.cell(95, 5, mi_dir, 0, 0); pdf.cell(95, 5, cl_dir, 0, 1)
 
-    # Tabla de conceptos
+    # Tabla
     pdf.ln(10)
     pdf.set_font("Arial", 'B', 9)
     pdf.set_fill_color(230, 230, 230)
@@ -94,17 +98,17 @@ def crear_pdf():
         pdf.cell(30, 7, f"{it['p']:.2f}", 1, 0, 'C')
         pdf.cell(30, 7, f"{it['t']:.2f}", 1, 1, 'C')
 
-    # Desglose Final
+    # Totales
     pdf.ln(5)
     pdf.set_font("Arial", 'B', 11)
-    pdf.cell(130, 10, "", 0)
-    pdf.cell(30, 10, "TOTAL EUR:", 0, 0, 'R')
-    pdf.cell(30, 10, f"{total:.2f}", 1, 1, 'R')
+    pdf.cell(130, 7, "", 0)
+    pdf.cell(30, 7, "TOTAL EUR:", 0, 0, 'R')
+    pdf.cell(30, 7, f"{total:.2f}", 1, 1, 'R')
     
-    # TEXTO LEGAL LEY IVA (ARTÍCULO 84)
+    # CLAUSULA DINÁMICA
     pdf.ln(5)
     pdf.set_font("Arial", 'I', 8)
-    pdf.multi_cell(0, 5, "Operacion sujeta a la Ley 37/1992 del IVA. En caso de inversion del sujeto pasivo, se aplica el articulo 84.Uno.2 de dicha Ley.")
+    pdf.multi_cell(0, 5, txt_legal.encode('latin-1', 'replace').decode('latin-1'))
     
     # IBAN
     pdf.ln(5)
