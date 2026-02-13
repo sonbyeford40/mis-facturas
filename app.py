@@ -3,14 +3,14 @@ from fpdf import FPDF
 from datetime import datetime
 
 # 1. Configuración de página
-st.set_page_config(page_title="Facturador Flexible", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Facturador Pro", layout="wide")
 
 # --- CABECERA ---
 c1, c2 = st.columns(2)
 with c1:
     num_f = st.text_input("Nº Factura", "2026-0001")
 with c2:
-    fec_f = st.date_input("Fecha", datetime.now()).strftime("%d/%m/%Y")
+    fec_f = st.text_input("Fecha", datetime.now().strftime("%d/%m/%Y"))
 
 # --- DATOS ---
 st.write("---")
@@ -44,49 +44,61 @@ if st.button("➕ Añadir otra fila"):
     st.session_state.filas += 1
     st.rerun()
 
-# --- IMPUESTOS EDITABLES Y TOTALES ---
+# --- IMPUESTOS Y LEGAL ---
 st.write("---")
-col_imp, col_res = st.columns(2)
-
+col_imp, col_tot = st.columns(2)
 with col_imp:
-    st.markdown("**Configuración de Impuestos**")
-    # Campos para editar los porcentajes
-    p_iva = st.number_input("Porcentaje IVA (%)", value=21.0, step=1.0)
-    p_irpf = st.number_input("Porcentaje IRPF (%)", value=15.0, step=1.0)
-    txt_legal = st.text_area("Cláusula Legal / Notas", 
-                             value="Operación sujeta a la Ley 37/1992 del IVA.")
+    p_iva = st.number_input("IVA (%)", value=21.0)
+    p_irpf = st.number_input("IRPF (%)", value=15.0)
+    txt_legal = st.text_area("Cláusula Legal", value="Operación sujeta a la Ley 37/1992 del IVA. Inversión del sujeto pasivo Art. 84.Uno.2.")
 
-with col_res:
-    base = sum(it["t"] for it in items)
-    val_iva = base * (p_iva / 100)
-    val_irpf = base * (p_irpf / 100)
-    total = base + val_iva - val_irpf
+# --- TOTALES ---
+base = sum(it["t"] for it in items)
+val_iva = base * (p_iva / 100)
+val_irpf = base * (p_irpf / 100)
+total = base + val_iva - val_irpf
 
-    st.write(f"**Base Imponible:** {base:.2f} EUR")
-    st.write(f"**IVA ({p_iva}%):** +{val_iva:.2f} EUR")
-    st.write(f"**IRPF ({p_irpf}%):** -{val_irpf:.2f} EUR")
-    st.markdown(f"## TOTAL A COBRAR: {total:.2f} EUR")
+with col_tot:
+    st.write(f"Base Imponible: {base:.2f} EUR")
+    st.write(f"IVA ({p_iva}%): {val_iva:.2f} EUR")
+    st.write(f"IRPF ({p_irpf}%): -{val_irpf:.2f} EUR")
+    st.markdown(f"### TOTAL: {total:.2f} EUR")
 
-# --- GENERADOR DE PDF ---
+# --- GENERADOR DE PDF CORREGIDO ---
 def crear_pdf():
     pdf = FPDF()
     pdf.add_page()
+    
+    # Función para limpiar caracteres especiales
+    def clean(texto):
+        return texto.encode('latin-1', 'replace').decode('latin-1')
+
+    # Encabezado
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(0, 10, "FACTURA", 0, 1, 'L')
-    
     pdf.set_font("Arial", '', 10)
-    pdf.cell(0, 7, f"Numero: {num_f}  |  Fecha: {fec_f}", 0, 1, 'R')
-    
-    pdf.ln(10)
+    pdf.cell(0, 7, f"Numero: {num_f} | Fecha: {fec_f}", 0, 1, 'R')
+    pdf.ln(5)
+
+    # Bloque Emisor y Cliente (Lado a lado)
+    y_antes = pdf.get_y()
     pdf.set_font("Arial", 'B', 10)
-    pdf.cell(95, 7, "EMISOR", 0, 0); pdf.cell(95, 7, "CLIENTE", 0, 1)
-    pdf.set_font("Arial", '', 10)
-    pdf.multi_cell(95, 5, f"{mi_nom}\nNIF: {mi_nif}\n{mi_dir}")
+    pdf.cell(95, 7, "EMISOR", 0, 0)
+    pdf.cell(95, 7, "CLIENTE", 0, 1)
     
+    pdf.set_font("Arial", '', 10)
+    # Emisor
+    y_emisor = pdf.get_y()
+    pdf.multi_cell(90, 5, clean(f"{mi_nom}\nNIF: {mi_nif}\n{mi_dir}"))
+    
+    # Cliente (posicionamos el cursor a la derecha)
+    pdf.set_xy(105, y_emisor)
+    pdf.multi_cell(90, 5, clean(f"{cl_nom}\nNIF: {cl_nif}\n{cl_dir}"))
+
     # Tabla
-    pdf.ln(10)
-    pdf.set_fill_color(230, 230, 230)
+    pdf.set_y(pdf.get_y() + 10)
     pdf.set_font("Arial", 'B', 9)
+    pdf.set_fill_color(230, 230, 230)
     pdf.cell(100, 8, "Descripcion", 1, 0, 'C', True)
     pdf.cell(30, 8, "Cant", 1, 0, 'C', True)
     pdf.cell(30, 8, "Precio", 1, 0, 'C', True)
@@ -94,29 +106,35 @@ def crear_pdf():
     
     pdf.set_font("Arial", '', 9)
     for it in items:
-        pdf.cell(100, 7, it["d"], 1)
+        pdf.cell(100, 7, clean(it["d"]), 1)
         pdf.cell(30, 7, str(it["m"]), 1, 0, 'C')
         pdf.cell(30, 7, f"{it['p']:.2f}", 1, 0, 'R')
         pdf.cell(30, 7, f"{it['t']:.2f}", 1, 1, 'R')
 
-    # Totales en PDF
+    # Totales
     pdf.ln(5)
     pdf.set_font("Arial", 'B', 10)
-    pdf.cell(130, 7, f"Base Imponible:", 0, 0, 'R')
+    pdf.cell(130, 7, "Base Imponible:", 0, 0, 'R')
     pdf.cell(60, 7, f"{base:.2f} EUR", 0, 1, 'R')
     pdf.cell(130, 7, f"IVA ({p_iva}%):", 0, 0, 'R')
-    pdf.cell(60, 7, f"+{val_iva:.2f} EUR", 0, 1, 'R')
+    pdf.cell(60, 7, f"{val_iva:.2f} EUR", 0, 1, 'R')
     pdf.cell(130, 7, f"IRPF ({p_irpf}%):", 0, 0, 'R')
     pdf.cell(60, 7, f"-{val_irpf:.2f} EUR", 0, 1, 'R')
-    
-    pdf.set_font("Arial", 'B', 12)
     pdf.cell(130, 10, "TOTAL A COBRAR:", 0, 0, 'R')
     pdf.cell(60, 10, f"{total:.2f} EUR", 1, 1, 'R')
-    
+
+    # Texto Legal y Pago (Aquí estaba el fallo)
     pdf.ln(10)
-    pdf.set_font("Arial", 'B', 10)
-    pdf.cell(0, 5, f"IBAN: {mi_iba}", 0, 1)
+    pdf.set_font("Arial", 'I', 8)
+    pdf.multi_cell(0, 5, clean(txt_legal)) # Ahora sí aparece el texto de la caja
     
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(0, 10, clean(f"FORMA DE PAGO (IBAN): {mi_iba}"), 0, 1)
+
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
-st.download_button("📩 DESCARGAR FACTURA PDF", data=crear_pdf(), file_name=f"Factura_{num_f}.pdf")
+if items:
+    st.download_button("📩 DESCARGAR FACTURA PDF", data=crear_pdf(), file_name=f"Factura_{num_f}.pdf")
+else:
+    st.info("Añade conceptos para descargar")
